@@ -20,6 +20,7 @@ const policySchema = z.object({
   policy_status: z.enum(['active', 'pending', 'expired', 'cancelled']),
   coverage_amount: z.number().min(0, 'Coverage amount must be positive'),
   premium_amount: z.number().min(0, 'Premium amount must be positive'),
+  monthly_emi: z.number().min(0, 'EMI amount must be positive').optional(),
   start_date: z.string().min(1, 'Start date is required'),
   end_date: z.string().min(1, 'End date is required'),
   description: z.string().max(500).optional(),
@@ -38,6 +39,7 @@ const AddPolicy = () => {
     policy_status: 'active',
     coverage_amount: '',
     premium_amount: '',
+    monthly_emi: '',
     start_date: '',
     end_date: '',
     description: '',
@@ -57,6 +59,7 @@ const AddPolicy = () => {
       ...formData,
       coverage_amount: parseFloat(formData.coverage_amount) || 0,
       premium_amount: parseFloat(formData.premium_amount) || 0,
+      monthly_emi: formData.monthly_emi ? parseFloat(formData.monthly_emi) : undefined,
       insurance_type: formData.insurance_type as 'life' | 'health' | 'vehicle' | 'house',
       policy_status: formData.policy_status as 'active' | 'pending' | 'expired' | 'cancelled',
     };
@@ -80,6 +83,7 @@ const AddPolicy = () => {
         policy_status: formData.policy_status,
         coverage_amount: parseFloat(formData.coverage_amount),
         premium_amount: parseFloat(formData.premium_amount),
+        monthly_emi: formData.monthly_emi ? parseFloat(formData.monthly_emi) : null,
         start_date: formData.start_date,
         end_date: formData.end_date,
         description: formData.description || null,
@@ -180,12 +184,12 @@ const AddPolicy = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="coverage_amount">Coverage Amount ($) *</Label>
+                  <Label htmlFor="coverage_amount">Coverage Amount (₹) *</Label>
                   <Input
                     id="coverage_amount"
                     type="number"
                     step="0.01"
-                    placeholder="e.g., 100000"
+                    placeholder="e.g., 1000000"
                     value={formData.coverage_amount}
                     onChange={(e) => setFormData({ ...formData, coverage_amount: e.target.value })}
                     required
@@ -193,17 +197,29 @@ const AddPolicy = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="premium_amount">Monthly Premium ($) *</Label>
+                  <Label htmlFor="premium_amount">Total Premium (₹) *</Label>
                   <Input
                     id="premium_amount"
                     type="number"
                     step="0.01"
-                    placeholder="e.g., 250"
+                    placeholder="e.g., 60000"
                     value={formData.premium_amount}
                     onChange={(e) => setFormData({ ...formData, premium_amount: e.target.value })}
                     required
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="monthly_emi">Monthly EMI (₹)</Label>
+                <Input
+                  id="monthly_emi"
+                  type="number"
+                  step="0.01"
+                  placeholder="e.g., 5000"
+                  value={formData.monthly_emi}
+                  onChange={(e) => setFormData({ ...formData, monthly_emi: e.target.value })}
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

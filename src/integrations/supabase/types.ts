@@ -22,6 +22,7 @@ export type Database = {
           end_date: string
           id: string
           insurance_type: Database["public"]["Enums"]["insurance_type"]
+          monthly_emi: number | null
           policy_name: string
           policy_number: string
           policy_provider: string
@@ -38,6 +39,7 @@ export type Database = {
           end_date: string
           id?: string
           insurance_type: Database["public"]["Enums"]["insurance_type"]
+          monthly_emi?: number | null
           policy_name: string
           policy_number: string
           policy_provider: string
@@ -54,6 +56,7 @@ export type Database = {
           end_date?: string
           id?: string
           insurance_type?: Database["public"]["Enums"]["insurance_type"]
+          monthly_emi?: number | null
           policy_name?: string
           policy_number?: string
           policy_provider?: string
@@ -102,7 +105,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      insert_seed_policies: {
+        Args: { target_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       insurance_type: "life" | "health" | "vehicle" | "house"

@@ -38,9 +38,13 @@ All colors MUST be HSL.
 
     --radius: 0.75rem;
 
+    /* Modern gradient palette with GenZ vibes */
     --gradient-primary: linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(199, 89%, 48%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(214, 32%, 97%) 100%);
-    --gradient-card: linear-gradient(135deg, hsl(0, 0%, 100%) 0%, hsl(214, 32%, 98%) 100%);
+    --gradient-vibrant: linear-gradient(135deg, hsl(280, 100%, 70%) 0%, hsl(217, 91%, 60%) 50%, hsl(199, 89%, 48%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(220, 70%, 98%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(0, 0%, 100%) 0%, hsl(220, 60%, 98%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(330, 100%, 75%) 0%, hsl(280, 100%, 70%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(160, 100%, 75%) 0%, hsl(199, 89%, 48%) 100%);
     
     --shadow-soft: 0 2px 8px -2px hsl(217, 91%, 60%, 0.1);
     --shadow-medium: 0 4px 16px -4px hsl(217, 91%, 60%, 0.15);
@@ -85,9 +89,13 @@ All colors MUST be HSL.
     --input: 217 28% 25%;
     --ring: 217 91% 60%;
 
+    /* Modern gradient palette with GenZ vibes - Dark mode */
     --gradient-primary: linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(199, 89%, 48%) 100%);
+    --gradient-vibrant: linear-gradient(135deg, hsl(280, 100%, 70%) 0%, hsl(217, 91%, 60%) 50%, hsl(199, 89%, 48%) 100%);
     --gradient-subtle: linear-gradient(180deg, hsl(217, 33%, 17%) 0%, hsl(217, 28%, 20%) 100%);
     --gradient-card: linear-gradient(135deg, hsl(217, 28%, 20%) 0%, hsl(217, 28%, 22%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(330, 100%, 65%) 0%, hsl(280, 100%, 60%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(160, 90%, 55%) 0%, hsl(199, 89%, 48%) 100%);
 
     --shadow-soft: 0 2px 8px -2px hsl(0, 0%, 0%, 0.3);
     --shadow-medium: 0 4px 16px -4px hsl(0, 0%, 0%, 0.4);

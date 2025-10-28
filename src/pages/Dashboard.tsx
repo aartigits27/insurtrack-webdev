@@ -17,10 +17,15 @@ interface Policy {
   policy_status: 'active' | 'pending' | 'expired' | 'cancelled';
   coverage_amount: number;
   premium_amount: number;
+  monthly_emi: number | null;
   start_date: string;
   end_date: string;
   description: string | null;
 }
+
+const formatCurrency = (amount: number) => {
+  return `₹${amount.toLocaleString('en-IN')}`;
+};
 
 const Dashboard = () => {
   const { user, signOut, loading: authLoading } = useAuth();
@@ -182,17 +187,17 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">
-                ${policies.reduce((sum, p) => sum + Number(p.coverage_amount || 0), 0).toLocaleString()}
+                {formatCurrency(policies.reduce((sum, p) => sum + Number(p.coverage_amount || 0), 0))}
               </div>
             </CardContent>
           </Card>
           <Card style={{ background: 'var(--gradient-card)', boxShadow: 'var(--shadow-soft)' }}>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Monthly Premium</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Monthly EMI</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">
-                ${policies.reduce((sum, p) => sum + Number(p.premium_amount || 0), 0).toLocaleString()}
+                {formatCurrency(policies.reduce((sum, p) => sum + Number(p.monthly_emi || 0), 0))}
               </div>
             </CardContent>
           </Card>
@@ -218,6 +223,34 @@ const Dashboard = () => {
           </Card>
         ) : (
           <div className="space-y-8">
+            {/* EMI Reminder Card */}
+            {policies.some(p => p.monthly_emi && p.monthly_emi > 0) && (
+              <Card className="border-2" style={{ background: 'var(--gradient-vibrant)', boxShadow: 'var(--shadow-large)' }}>
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Shield className="w-5 h-5" />
+                    EMI Payment Reminder
+                  </CardTitle>
+                  <CardDescription className="text-white/90">Your upcoming insurance EMI payments</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {policies.filter(p => p.monthly_emi && p.monthly_emi > 0 && p.policy_status === 'active').map((policy) => (
+                    <div key={policy.id} className="bg-white/20 backdrop-blur-sm rounded-lg p-4 text-white">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="font-semibold">{policy.policy_name}</div>
+                          <div className="text-sm text-white/80">{policy.policy_provider}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-bold text-lg">{formatCurrency(Number(policy.monthly_emi))}</div>
+                          <div className="text-sm text-white/80">Due monthly</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
             {/* Life Insurance */}
             {groupedPolicies.life.length > 0 && (
               <div>
@@ -250,11 +283,11 @@ const Dashboard = () => {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Coverage:</span>
-                          <span className="font-medium">${Number(policy.coverage_amount).toLocaleString()}</span>
+                          <span className="font-medium">{formatCurrency(Number(policy.coverage_amount))}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Premium:</span>
-                          <span className="font-medium">${Number(policy.premium_amount).toLocaleString()}/mo</span>
+                          <span className="text-muted-foreground">Monthly EMI:</span>
+                          <span className="font-medium">{formatCurrency(Number(policy.monthly_emi || 0))}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Valid Until:</span>
@@ -299,11 +332,11 @@ const Dashboard = () => {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Coverage:</span>
-                          <span className="font-medium">${Number(policy.coverage_amount).toLocaleString()}</span>
+                          <span className="font-medium">{formatCurrency(Number(policy.coverage_amount))}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Premium:</span>
-                          <span className="font-medium">${Number(policy.premium_amount).toLocaleString()}/mo</span>
+                          <span className="text-muted-foreground">Monthly EMI:</span>
+                          <span className="font-medium">{formatCurrency(Number(policy.monthly_emi || 0))}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Valid Until:</span>
@@ -348,11 +381,11 @@ const Dashboard = () => {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Coverage:</span>
-                          <span className="font-medium">${Number(policy.coverage_amount).toLocaleString()}</span>
+                          <span className="font-medium">{formatCurrency(Number(policy.coverage_amount))}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Premium:</span>
-                          <span className="font-medium">${Number(policy.premium_amount).toLocaleString()}/mo</span>
+                          <span className="text-muted-foreground">Monthly EMI:</span>
+                          <span className="font-medium">{formatCurrency(Number(policy.monthly_emi || 0))}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Valid Until:</span>
@@ -397,11 +430,11 @@ const Dashboard = () => {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Coverage:</span>
-                          <span className="font-medium">${Number(policy.coverage_amount).toLocaleString()}</span>
+                          <span className="font-medium">{formatCurrency(Number(policy.coverage_amount))}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Premium:</span>
-                          <span className="font-medium">${Number(policy.premium_amount).toLocaleString()}/mo</span>
+                          <span className="text-muted-foreground">Monthly EMI:</span>
+                          <span className="font-medium">{formatCurrency(Number(policy.monthly_emi || 0))}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Valid Until:</span>
