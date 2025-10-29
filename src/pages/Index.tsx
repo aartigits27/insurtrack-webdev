@@ -25,7 +25,7 @@ const Index = () => {
           
           <h1 className="text-5xl md:text-6xl font-bold tracking-tight">
             <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              InsureGuard
+              InsurTrack
             </span>
           </h1>
           
@@ -98,7 +98,7 @@ const Index = () => {
       {/* Features */}
       <section className="container mx-auto px-4 py-16">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-4">Why Choose InsureGuard?</h2>
+          <h2 className="text-3xl font-bold mb-4">Why Choose InsurTrack?</h2>
           <p className="text-muted-foreground text-lg">Powerful features to keep your insurance organized</p>
         </div>
         
@@ -136,7 +136,7 @@ const Index = () => {
             Ready to Get Started?
           </h2>
           <p className="text-xl text-primary-foreground/90 mb-8">
-            Join thousands of users who trust InsureGuard to manage their insurance policies
+            Join thousands of users who trust InsurTrack to manage their insurance policies
           </p>
           <Button 
             size="lg" 
@@ -152,7 +152,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t bg-card">
         <div className="container mx-auto px-4 py-8 text-center text-muted-foreground">
-          <p>© 2024 InsureGuard. All rights reserved.</p>
+          <p>© 2024 InsurTrack. All rights reserved.</p>
         </div>
       </footer>
     </div>

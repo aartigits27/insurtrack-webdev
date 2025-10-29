@@ -19,6 +19,7 @@ export type Database = {
           coverage_amount: number | null
           created_at: string | null
           description: string | null
+          emi_date: number | null
           end_date: string
           id: string
           insurance_type: Database["public"]["Enums"]["insurance_type"]
@@ -36,6 +37,7 @@ export type Database = {
           coverage_amount?: number | null
           created_at?: string | null
           description?: string | null
+          emi_date?: number | null
           end_date: string
           id?: string
           insurance_type: Database["public"]["Enums"]["insurance_type"]
@@ -53,6 +55,7 @@ export type Database = {
           coverage_amount?: number | null
           created_at?: string | null
           description?: string | null
+          emi_date?: number | null
           end_date?: string
           id?: string
           insurance_type?: Database["public"]["Enums"]["insurance_type"]

@@ -108,7 +108,7 @@ const Auth = () => {
           <div className="mx-auto mb-4 w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'var(--gradient-primary)' }}>
             <Shield className="w-6 h-6 text-primary-foreground" />
           </div>
-          <CardTitle className="text-2xl font-bold">InsureGuard</CardTitle>
+          <CardTitle className="text-2xl font-bold">InsurTrack</CardTitle>
           <CardDescription>Manage all your insurance policies in one place</CardDescription>
         </CardHeader>
         <CardContent>

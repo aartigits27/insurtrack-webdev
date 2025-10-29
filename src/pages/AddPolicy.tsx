@@ -21,6 +21,7 @@ const policySchema = z.object({
   coverage_amount: z.number().min(0, 'Coverage amount must be positive'),
   premium_amount: z.number().min(0, 'Premium amount must be positive'),
   monthly_emi: z.number().min(0, 'EMI amount must be positive').optional(),
+  emi_date: z.number().min(1, 'EMI date must be between 1-31').max(31, 'EMI date must be between 1-31').optional(),
   start_date: z.string().min(1, 'Start date is required'),
   end_date: z.string().min(1, 'End date is required'),
   description: z.string().max(500).optional(),
@@ -40,6 +41,7 @@ const AddPolicy = () => {
     coverage_amount: '',
     premium_amount: '',
     monthly_emi: '',
+    emi_date: '',
     start_date: '',
     end_date: '',
     description: '',
@@ -60,6 +62,7 @@ const AddPolicy = () => {
       coverage_amount: parseFloat(formData.coverage_amount) || 0,
       premium_amount: parseFloat(formData.premium_amount) || 0,
       monthly_emi: formData.monthly_emi ? parseFloat(formData.monthly_emi) : undefined,
+      emi_date: formData.emi_date ? parseInt(formData.emi_date) : undefined,
       insurance_type: formData.insurance_type as 'life' | 'health' | 'vehicle' | 'house',
       policy_status: formData.policy_status as 'active' | 'pending' | 'expired' | 'cancelled',
     };
@@ -84,6 +87,7 @@ const AddPolicy = () => {
         coverage_amount: parseFloat(formData.coverage_amount),
         premium_amount: parseFloat(formData.premium_amount),
         monthly_emi: formData.monthly_emi ? parseFloat(formData.monthly_emi) : null,
+        emi_date: formData.emi_date ? parseInt(formData.emi_date) : null,
         start_date: formData.start_date,
         end_date: formData.end_date,
         description: formData.description || null,
@@ -210,16 +214,32 @@ const AddPolicy = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="monthly_emi">Monthly EMI (₹)</Label>
-                <Input
-                  id="monthly_emi"
-                  type="number"
-                  step="0.01"
-                  placeholder="e.g., 5000"
-                  value={formData.monthly_emi}
-                  onChange={(e) => setFormData({ ...formData, monthly_emi: e.target.value })}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="monthly_emi">Monthly EMI (₹)</Label>
+                  <Input
+                    id="monthly_emi"
+                    type="number"
+                    step="0.01"
+                    placeholder="e.g., 5000"
+                    value={formData.monthly_emi}
+                    onChange={(e) => setFormData({ ...formData, monthly_emi: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="emi_date">EMI Due Date (Day of Month)</Label>
+                  <Input
+                    id="emi_date"
+                    type="number"
+                    min="1"
+                    max="31"
+                    placeholder="e.g., 5 (5th of every month)"
+                    value={formData.emi_date}
+                    onChange={(e) => setFormData({ ...formData, emi_date: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">Enter a day between 1-31 for monthly EMI reminder</p>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -18,6 +18,7 @@ interface Policy {
   coverage_amount: number;
   premium_amount: number;
   monthly_emi: number | null;
+  emi_date: number | null;
   start_date: string;
   end_date: string;
   description: string | null;
@@ -25,6 +26,16 @@ interface Policy {
 
 const formatCurrency = (amount: number) => {
   return `₹${amount.toLocaleString('en-IN')}`;
+};
+
+const getOrdinalSuffix = (day: number) => {
+  if (day > 3 && day < 21) return 'th';
+  switch (day % 10) {
+    case 1: return 'st';
+    case 2: return 'nd';
+    case 3: return 'rd';
+    default: return 'th';
+  }
 };
 
 const Dashboard = () => {
@@ -142,7 +153,7 @@ const Dashboard = () => {
               <Shield className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">InsureGuard</h1>
+              <h1 className="text-xl font-bold">InsurTrack</h1>
               <p className="text-sm text-muted-foreground">Welcome back, {profile?.full_name || 'User'}</p>
             </div>
           </div>
@@ -236,16 +247,18 @@ const Dashboard = () => {
                 <CardContent className="space-y-3">
                   {policies.filter(p => p.monthly_emi && p.monthly_emi > 0 && p.policy_status === 'active').map((policy) => (
                     <div key={policy.id} className="bg-white/20 backdrop-blur-sm rounded-lg p-4 text-white">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="font-semibold">{policy.policy_name}</div>
-                          <div className="text-sm text-white/80">{policy.policy_provider}</div>
+                        <div className="flex justify-between">
+                          <div>
+                            <div className="font-semibold">{policy.policy_name}</div>
+                            <div className="text-sm text-white/80">{policy.policy_provider}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold text-lg">{formatCurrency(Number(policy.monthly_emi))}</div>
+                            <div className="text-sm text-white/80">
+                              {policy.emi_date ? `Due on ${policy.emi_date}${getOrdinalSuffix(policy.emi_date)} of every month` : 'Due monthly'}
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-bold text-lg">{formatCurrency(Number(policy.monthly_emi))}</div>
-                          <div className="text-sm text-white/80">Due monthly</div>
-                        </div>
-                      </div>
                     </div>
                   ))}
                 </CardContent>
