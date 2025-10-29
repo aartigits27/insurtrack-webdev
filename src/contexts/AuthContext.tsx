@@ -3,10 +3,20 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useNavigate } from 'react-router-dom';
 
+interface SignUpData {
+  email: string;
+  password: string;
+  fullName: string;
+  age?: number;
+  gender?: string;
+  dateOfBirth?: string;
+  avatarFile?: File;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
+  signUp: (data: SignUpData) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   loading: boolean;
@@ -39,21 +49,52 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (data: SignUpData) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
+    const { data: authData, error } = await supabase.auth.signUp({
+      email: data.email,
+      password: data.password,
       options: {
         emailRedirectTo: redirectUrl,
         data: {
-          full_name: fullName,
+          full_name: data.fullName,
         },
       },
     });
     
-    return { error };
+    if (error || !authData.user) return { error };
+
+    // Upload avatar if provided
+    let avatarUrl = null;
+    if (data.avatarFile) {
+      const fileExt = data.avatarFile.name.split('.').pop();
+      const fileName = `${authData.user.id}/${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, data.avatarFile);
+
+      if (!uploadError) {
+        const { data: urlData } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(fileName);
+        avatarUrl = urlData.publicUrl;
+      }
+    }
+
+    // Update profile with additional details
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        age: data.age,
+        gender: data.gender,
+        date_of_birth: data.dateOfBirth,
+        avatar_url: avatarUrl,
+      })
+      .eq('id', authData.user.id);
+
+    return { error: profileError || error };
   };
 
   const signIn = async (email: string, password: string) => {

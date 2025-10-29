@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Shield, ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { AppSidebar } from '@/components/AppSidebar';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 
 const policySchema = z.object({
   policy_name: z.string().min(2, 'Policy name must be at least 2 characters').max(100),
@@ -106,23 +108,24 @@ const AddPolicy = () => {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--gradient-subtle)' }}>
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-          <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--gradient-primary)' }}>
-            <Shield className="w-5 h-5 text-primary-foreground" />
+    <div className="flex min-h-screen w-full">
+      <AppSidebar />
+      
+      <div className="flex-1" style={{ background: 'var(--gradient-subtle)' }}>
+        {/* Header */}
+        <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
+          <div className="container mx-auto px-4 py-4 flex items-center gap-3">
+            <SidebarTrigger />
+            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+            <h1 className="text-xl font-bold">Add New Policy</h1>
           </div>
-          <h1 className="text-xl font-bold">Add New Policy</h1>
-        </div>
-      </header>
+        </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
+        {/* Main Content */}
+        <main className="container mx-auto px-4 py-8 max-w-2xl">
         <Card style={{ boxShadow: 'var(--shadow-large)' }}>
           <CardHeader>
             <CardTitle>Policy Details</CardTitle>
@@ -314,6 +317,7 @@ const AddPolicy = () => {
           </CardContent>
         </Card>
       </main>
+    </div>
     </div>
   );
 };
