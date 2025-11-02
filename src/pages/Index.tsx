@@ -152,7 +152,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t bg-card">
         <div className="container mx-auto px-4 py-8 text-center text-muted-foreground">
-          <p>© 2024 InsurTrack. All rights reserved.</p>
+          <p>© 2025 InsurTrack. All rights reserved.</p>
         </div>
       </footer>
     </div>
