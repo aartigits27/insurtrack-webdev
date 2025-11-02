@@ -120,7 +120,7 @@ const Auth = () => {
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-4" style={{ background: 'var(--gradient-subtle)' }}>
+    <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 md:p-8" style={{ background: 'var(--gradient-subtle)' }}>
       <Card className="w-full max-w-md backdrop-blur-sm bg-card/80" style={{ boxShadow: 'var(--shadow-large)' }}>
         <CardHeader className="text-center space-y-4">
           <div className="mx-auto w-16 h-16 rounded-2xl flex items-center justify-center animate-pulse" style={{ background: 'var(--gradient-primary)', boxShadow: 'var(--shadow-glow)' }}>
