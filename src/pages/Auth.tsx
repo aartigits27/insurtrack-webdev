@@ -120,14 +120,16 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--gradient-subtle)' }}>
-      <Card className="w-full max-w-md" style={{ boxShadow: 'var(--shadow-large)' }}>
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'var(--gradient-primary)' }}>
-            <Shield className="w-6 h-6 text-primary-foreground" />
+    <div className="min-h-screen w-full flex items-center justify-center p-4 bg-background" style={{ background: 'var(--gradient-subtle)' }}>
+      <Card className="w-full max-w-md backdrop-blur-sm bg-card/80" style={{ boxShadow: 'var(--shadow-large)' }}>
+        <CardHeader className="text-center space-y-4">
+          <div className="mx-auto w-16 h-16 rounded-2xl flex items-center justify-center animate-pulse" style={{ background: 'var(--gradient-primary)', boxShadow: 'var(--shadow-glow)' }}>
+            <Shield className="w-8 h-8 text-primary-foreground" />
           </div>
-          <CardTitle className="text-2xl font-bold">InsurTrack</CardTitle>
-          <CardDescription>Manage all your insurance policies in one place</CardDescription>
+          <div>
+            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">InsurTrack</CardTitle>
+            <CardDescription className="text-base mt-2">Manage all your insurance policies in one place</CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
