@@ -14,8 +14,68 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_clients: {
+        Row: {
+          agent_id: string
+          assigned_at: string | null
+          client_id: string
+          id: string
+        }
+        Insert: {
+          agent_id: string
+          assigned_at?: string | null
+          client_id: string
+          id?: string
+        }
+        Update: {
+          agent_id?: string
+          assigned_at?: string | null
+          client_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_clients_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agents: {
+        Row: {
+          agent_code: string
+          commission_rate: number
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          agent_code: string
+          commission_rate?: number
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          agent_code?: string
+          commission_rate?: number
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       insurance_policies: {
         Row: {
+          agent_id: string | null
           coverage_amount: number | null
           created_at: string | null
           description: string | null
@@ -34,6 +94,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          agent_id?: string | null
           coverage_amount?: number | null
           created_at?: string | null
           description?: string | null
@@ -52,6 +113,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          agent_id?: string | null
           coverage_amount?: number | null
           created_at?: string | null
           description?: string | null
@@ -71,10 +133,65 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "insurance_policies_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "insurance_policies_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      policy_commissions: {
+        Row: {
+          agent_id: string
+          commission_amount: number
+          commission_rate: number
+          created_at: string | null
+          id: string
+          paid_at: string | null
+          policy_id: string
+          status: string
+        }
+        Insert: {
+          agent_id: string
+          commission_amount: number
+          commission_rate: number
+          created_at?: string | null
+          id?: string
+          paid_at?: string | null
+          policy_id: string
+          status?: string
+        }
+        Update: {
+          agent_id?: string
+          commission_amount?: number
+          commission_rate?: number
+          created_at?: string | null
+          id?: string
+          paid_at?: string | null
+          policy_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_commissions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policy_commissions_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "insurance_policies"
             referencedColumns: ["id"]
           },
         ]
@@ -115,17 +232,51 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       insert_seed_policies: {
         Args: { target_user_id: string }
         Returns: undefined
       }
+      promote_to_admin: { Args: { user_email: string }; Returns: undefined }
     }
     Enums: {
+      app_role: "admin" | "agent" | "user"
       insurance_type: "life" | "health" | "vehicle" | "house"
       policy_status: "active" | "pending" | "expired" | "cancelled"
     }
@@ -255,6 +406,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "agent", "user"],
       insurance_type: ["life", "health", "vehicle", "house"],
       policy_status: ["active", "pending", "expired", "cancelled"],
     },

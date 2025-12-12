@@ -1,6 +1,7 @@
-import { Shield, LayoutDashboard, User, LogOut, Plus } from 'lucide-react';
+import { Shield, LayoutDashboard, User, LogOut, Plus, Users, Briefcase } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserRole } from '@/hooks/useUserRole';
 
 import {
   Sidebar,
@@ -15,15 +16,10 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 
-const navItems = [
-  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
-  { title: 'Add Policy', url: '/add-policy', icon: Plus },
-  { title: 'Personal Details', url: '/personal-details', icon: User },
-];
-
 export function AppSidebar() {
   const { state, setOpenMobile, isMobile } = useSidebar();
   const { signOut } = useAuth();
+  const { role } = useUserRole();
   const isCollapsed = state === 'collapsed';
 
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
@@ -38,6 +34,24 @@ export function AppSidebar() {
   const handleSignOut = async () => {
     await signOut();
   };
+
+  // Role-based navigation
+  const navItems = role === 'admin' 
+    ? [
+        { title: 'Admin Panel', url: '/admin', icon: Users },
+        { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+        { title: 'Personal Details', url: '/personal-details', icon: User },
+      ]
+    : role === 'agent'
+    ? [
+        { title: 'Agent Panel', url: '/agent', icon: Briefcase },
+        { title: 'Personal Details', url: '/personal-details', icon: User },
+      ]
+    : [
+        { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+        { title: 'Add Policy', url: '/add-policy', icon: Plus },
+        { title: 'Personal Details', url: '/personal-details', icon: User },
+      ];
 
   return (
     <Sidebar className={isCollapsed ? 'w-14' : 'w-60'}>
