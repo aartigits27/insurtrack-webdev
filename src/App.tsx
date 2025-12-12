@@ -10,6 +10,8 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import AddPolicy from "./pages/AddPolicy";
 import PersonalDetails from "./pages/PersonalDetails";
+import AdminDashboard from "./pages/AdminDashboard";
+import AgentDashboard from "./pages/AgentDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +30,8 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/add-policy" element={<AddPolicy />} />
               <Route path="/personal-details" element={<PersonalDetails />} />
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/agent" element={<AgentDashboard />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserRole } from '@/hooks/useUserRole';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,6 +27,7 @@ const signInSchema = z.object({
 
 const Auth = () => {
   const { signUp, signIn, user } = useAuth();
+  const { role, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
@@ -44,11 +46,18 @@ const Auth = () => {
     password: '',
   });
 
-  // Redirect if already authenticated
-  if (user) {
-    navigate('/dashboard');
-    return null;
-  }
+  // Redirect based on role after authentication
+  useEffect(() => {
+    if (user && !roleLoading && role) {
+      if (role === 'admin') {
+        navigate('/admin');
+      } else if (role === 'agent') {
+        navigate('/agent');
+      } else {
+        navigate('/dashboard');
+      }
+    }
+  }, [user, role, roleLoading, navigate]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +97,7 @@ const Auth = () => {
       }
     } else {
       toast.success('Account created successfully!');
-      navigate('/dashboard');
+      // Navigation will be handled by useEffect based on role
     }
   };
 
@@ -115,7 +124,7 @@ const Auth = () => {
       }
     } else {
       toast.success('Welcome back!');
-      navigate('/dashboard');
+      // Navigation will be handled by useEffect based on role
     }
   };
 
