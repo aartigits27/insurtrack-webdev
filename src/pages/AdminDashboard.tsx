@@ -189,49 +189,19 @@ const AdminDashboard = () => {
     setAddingAgent(true);
 
     try {
-      // Create user account via signup
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: newAgentEmail,
-        password: newAgentPassword,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            full_name: newAgentName,
-          },
+      const { error } = await supabase.functions.invoke('create-agent', {
+        body: {
+          email: newAgentEmail,
+          password: newAgentPassword,
+          fullName: newAgentName,
+          agentCode: newAgentCode,
+          commissionRate: parseFloat(newAgentCommission) || 10,
         },
       });
 
-      if (authError || !authData.user) {
-        toast.error(authError?.message || 'Failed to create agent account');
-        setAddingAgent(false);
-        return;
-      }
-
-      // Wait a moment for the trigger to create the profile
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Update the user's role to 'agent'
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .update({ role: 'agent' })
-        .eq('user_id', authData.user.id);
-
-      if (roleError) {
-        console.error('Error updating role:', roleError);
-      }
-
-      // Create agent record
-      const { error: agentError } = await supabase
-        .from('agents')
-        .insert({
-          user_id: authData.user.id,
-          agent_code: newAgentCode,
-          commission_rate: parseFloat(newAgentCommission) || 10,
-        });
-
-      if (agentError) {
-        toast.error('Agent account created but failed to create agent record');
-        console.error('Error creating agent:', agentError);
+      if (error) {
+        console.error('Error creating agent via function:', error);
+        toast.error(error.message || 'Failed to add agent');
       } else {
         toast.success('Agent added successfully!');
         setNewAgentEmail('');

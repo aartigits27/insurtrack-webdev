@@ -36,10 +36,9 @@ export function AppSidebar() {
   };
 
   // Role-based navigation
-  const navItems = role === 'admin' 
+  const navItems = role === 'admin'
     ? [
         { title: 'Admin Panel', url: '/admin', icon: Users },
-        { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
         { title: 'Personal Details', url: '/personal-details', icon: User },
       ]
     : role === 'agent'

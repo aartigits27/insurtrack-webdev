@@ -288,7 +288,7 @@ const AgentDashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <Card style={{ background: 'var(--gradient-card)', boxShadow: 'var(--shadow-soft)' }}>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Clients</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Assigned Clients</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold">{clients.length}</div>
@@ -304,18 +304,18 @@ const AgentDashboard = () => {
             </Card>
             <Card style={{ background: 'var(--gradient-card)', boxShadow: 'var(--shadow-soft)' }}>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Commission</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Expired Clients</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">{formatCurrency(totalCommission)}</div>
+                <div className="text-3xl font-bold text-muted-foreground">{expiredClients.length}</div>
               </CardContent>
             </Card>
             <Card style={{ background: 'var(--gradient-card)', boxShadow: 'var(--shadow-soft)' }}>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Pending Commission</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Commission</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-yellow-600">{formatCurrency(pendingCommission)}</div>
+                <div className="text-3xl font-bold">{formatCurrency(totalCommission)}</div>
               </CardContent>
             </Card>
           </div>
