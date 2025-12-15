@@ -14,22 +14,34 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
 serve(async (req) => {
-  if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json" },
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const json = (payload: unknown, status = 200) =>
+    new Response(JSON.stringify(payload), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+
+  if (req.method !== "POST") {
+    return json({ error: "Method not allowed" }, 405);
   }
 
   try {
+    console.log("create-agent: request received");
+
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "");
 
     if (!token) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
+      return json({ error: "Unauthorized" }, 401);
     }
 
     // Get current user from the access token
@@ -39,10 +51,8 @@ serve(async (req) => {
     } = await supabaseAdmin.auth.getUser(token);
 
     if (userError || !currentUser) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
+      console.error("create-agent: getUser failed", userError);
+      return json({ error: "Unauthorized" }, 401);
     }
 
     // Ensure the caller is an admin using has_role helper
@@ -50,10 +60,8 @@ serve(async (req) => {
       .rpc("has_role", { _user_id: currentUser.id, _role: "admin" });
 
     if (roleError || !isAdmin) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), {
-        status: 403,
-        headers: { "Content-Type": "application/json" },
-      });
+      console.error("create-agent: role check failed", roleError);
+      return json({ error: "Forbidden" }, 403);
     }
 
     const body = await req.json();
@@ -66,28 +74,26 @@ serve(async (req) => {
     };
 
     if (!email || !password || !fullName || !agentCode) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return json({ error: "Missing required fields" }, 400);
     }
 
     // 1) Create the auth user (agent)
-    const { data: createdUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: {
-        full_name: fullName,
-      },
-    });
+    const { data: createdUser, error: createError } =
+      await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: fullName,
+        },
+      });
 
     if (createError || !createdUser.user) {
-      console.error("Error creating auth user", createError);
-      return new Response(JSON.stringify({ error: createError?.message || "Failed to create user" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      console.error("create-agent: error creating auth user", createError);
+      return json(
+        { error: createError?.message || "Failed to create user" },
+        400,
+      );
     }
 
     const userId = createdUser.user.id;
@@ -103,27 +109,22 @@ serve(async (req) => {
     );
 
     if (profileError) {
-      console.error("Error upserting profile", profileError);
-      return new Response(JSON.stringify({ error: "Failed to create agent profile" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      console.error("create-agent: error upserting profile", profileError);
+      return json({ error: "Failed to create agent profile" }, 500);
     }
 
     // 3) Set role to 'agent' (replace any existing roles for this user)
     await supabaseAdmin.from("user_roles").delete().eq("user_id", userId);
 
-    const { error: roleInsertError } = await supabaseAdmin.from("user_roles").insert({
-      user_id: userId,
-      role: "agent",
-    });
+    const { error: roleInsertError } = await supabaseAdmin.from("user_roles")
+      .insert({
+        user_id: userId,
+        role: "agent",
+      });
 
     if (roleInsertError) {
-      console.error("Error inserting agent role", roleInsertError);
-      return new Response(JSON.stringify({ error: "Failed to set agent role" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      console.error("create-agent: error inserting agent role", roleInsertError);
+      return json({ error: "Failed to set agent role" }, 500);
     }
 
     // 4) Create agent record
@@ -134,22 +135,15 @@ serve(async (req) => {
     });
 
     if (agentError) {
-      console.error("Error creating agent record", agentError);
-      return new Response(JSON.stringify({ error: "Failed to create agent record" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      console.error("create-agent: error creating agent record", agentError);
+      return json({ error: "Failed to create agent record" }, 500);
     }
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    console.log("create-agent: success", { userId });
+    return json({ success: true }, 200);
   } catch (err) {
-    console.error("Unexpected error in create-agent function", err);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    console.error("create-agent: unexpected error", err);
+    return json({ error: "Internal server error" }, 500);
   }
 });
+
