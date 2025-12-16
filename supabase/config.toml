@@ -1,1 +1,10 @@
 project_id = "znmqfxbfnsrrnaenwghn"
+
+[functions.create-agent]
+verify_jwt = false
+
+[functions.onboard-client]
+verify_jwt = false
+
+[functions.send-emi-reminders]
+verify_jwt = false

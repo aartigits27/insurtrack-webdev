@@ -2,48 +2,44 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, Loader2 } from 'lucide-react';
+import { Shield, Loader2, UserCog, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
-
-const signUpSchema = z.object({
-  fullName: z.string().min(2, 'Name must be at least 2 characters').max(100),
-  email: z.string().email('Invalid email address').max(255),
-  password: z.string().min(6, 'Password must be at least 6 characters').max(100),
-  age: z.number().min(0).max(150).optional(),
-  gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
-  dateOfBirth: z.string().optional(),
-});
 
 const signInSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
+const clientSignInSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  agentCode: z.string().min(1, 'Agent code is required'),
+});
+
 const Auth = () => {
-  const { signUp, signIn, user } = useAuth();
+  const { signIn, user } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
-  const [signUpData, setSignUpData] = useState({
-    fullName: '',
+  // Admin/Agent sign in
+  const [adminSignInData, setAdminSignInData] = useState({
     email: '',
     password: '',
-    age: '',
-    gender: '',
-    dateOfBirth: '',
-    avatarFile: null as File | null,
   });
 
-  const [signInData, setSignInData] = useState({
+  // Client sign in with agent code
+  const [clientSignInData, setClientSignInData] = useState({
     email: '',
     password: '',
+    agentCode: '',
   });
 
   // Redirect based on role after authentication
@@ -59,17 +55,10 @@ const Auth = () => {
     }
   }, [user, role, roleLoading, navigate]);
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleAdminSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const dataToValidate = {
-      ...signUpData,
-      age: signUpData.age ? parseInt(signUpData.age) : undefined,
-      gender: signUpData.gender || undefined,
-      dateOfBirth: signUpData.dateOfBirth || undefined,
-    };
-
-    const validation = signUpSchema.safeParse(dataToValidate);
+    const validation = signInSchema.safeParse(adminSignInData);
     if (!validation.success) {
       toast.error(validation.error.errors[0].message);
       return;
@@ -77,55 +66,110 @@ const Auth = () => {
 
     setLoading(true);
     
-    const { error } = await signUp({
-      email: signUpData.email,
-      password: signUpData.password,
-      fullName: signUpData.fullName,
-      age: signUpData.age ? parseInt(signUpData.age) : undefined,
-      gender: signUpData.gender || undefined,
-      dateOfBirth: signUpData.dateOfBirth || undefined,
-      avatarFile: signUpData.avatarFile || undefined,
-    });
+    const { error } = await signIn(adminSignInData.email, adminSignInData.password);
     
-    setLoading(false);
-
-    if (error) {
-      if (error.message.includes('already registered')) {
-        toast.error('This email is already registered. Please sign in instead.');
-      } else {
-        toast.error(error.message || 'Failed to sign up');
-      }
-    } else {
-      toast.success('Account created successfully!');
-      // Navigation will be handled by useEffect based on role
-    }
-  };
-
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const validation = signInSchema.safeParse(signInData);
-    if (!validation.success) {
-      toast.error(validation.error.errors[0].message);
-      return;
-    }
-
-    setLoading(true);
-    
-    const { error } = await signIn(signInData.email, signInData.password);
-    
-    setLoading(false);
-
     if (error) {
       if (error.message.includes('Invalid login credentials')) {
         toast.error('Invalid email or password');
       } else {
         toast.error(error.message || 'Failed to sign in');
       }
-    } else {
-      toast.success('Welcome back!');
-      // Navigation will be handled by useEffect based on role
+      setLoading(false);
+      return;
     }
+
+    // Check if user is admin or agent
+    const { data: { user: loggedInUser } } = await supabase.auth.getUser();
+    if (loggedInUser) {
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', loggedInUser.id)
+        .maybeSingle();
+
+      if (roleData?.role !== 'admin' && roleData?.role !== 'agent') {
+        await supabase.auth.signOut();
+        toast.error('This login is for Admin/Agent only. Clients should use the Client Login tab.');
+        setLoading(false);
+        return;
+      }
+    }
+
+    toast.success('Welcome back!');
+    setLoading(false);
+  };
+
+  const handleClientSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const validation = clientSignInSchema.safeParse(clientSignInData);
+    if (!validation.success) {
+      toast.error(validation.error.errors[0].message);
+      return;
+    }
+
+    setLoading(true);
+    
+    const { error } = await signIn(clientSignInData.email, clientSignInData.password);
+    
+    if (error) {
+      if (error.message.includes('Invalid login credentials')) {
+        toast.error('Invalid email or password');
+      } else {
+        toast.error(error.message || 'Failed to sign in');
+      }
+      setLoading(false);
+      return;
+    }
+
+    // Verify the agent code matches
+    const { data: { user: loggedInUser } } = await supabase.auth.getUser();
+    if (loggedInUser) {
+      // Check if user role is 'user'
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', loggedInUser.id)
+        .maybeSingle();
+
+      if (roleData?.role !== 'user') {
+        await supabase.auth.signOut();
+        toast.error('This login is for clients only. Admin/Agent should use the Admin/Agent Login tab.');
+        setLoading(false);
+        return;
+      }
+
+      // Verify agent code by checking agent_clients relationship
+      const { data: agentClientData } = await supabase
+        .from('agent_clients')
+        .select('agent_id')
+        .eq('client_id', loggedInUser.id)
+        .maybeSingle();
+
+      if (agentClientData) {
+        // Verify the agent code matches
+        const { data: agentData } = await supabase
+          .from('agents')
+          .select('agent_code')
+          .eq('id', agentClientData.agent_id)
+          .maybeSingle();
+
+        if (!agentData || agentData.agent_code !== clientSignInData.agentCode) {
+          await supabase.auth.signOut();
+          toast.error('Invalid agent code. Please contact your agent for the correct code.');
+          setLoading(false);
+          return;
+        }
+      } else {
+        await supabase.auth.signOut();
+        toast.error('No agent assigned to this account. Please contact your agent.');
+        setLoading(false);
+        return;
+      }
+    }
+
+    toast.success('Welcome back!');
+    setLoading(false);
   };
 
   return (
@@ -141,35 +185,56 @@ const Auth = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="signin" className="w-full">
+          <Tabs defaultValue="client" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              <TabsTrigger value="client" className="flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Client Login
+              </TabsTrigger>
+              <TabsTrigger value="admin" className="flex items-center gap-2">
+                <UserCog className="w-4 h-4" />
+                Admin/Agent
+              </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="signin">
-              <form onSubmit={handleSignIn} className="space-y-4">
+            <TabsContent value="client">
+              <form onSubmit={handleClientSignIn} className="space-y-4">
+                <div className="text-sm text-muted-foreground text-center mb-4">
+                  Login with credentials provided by your insurance agent
+                </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signin-email">Email</Label>
+                  <Label htmlFor="client-email">Email</Label>
                   <Input
-                    id="signin-email"
+                    id="client-email"
                     type="email"
                     placeholder="you@example.com"
-                    value={signInData.email}
-                    onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
+                    value={clientSignInData.email}
+                    onChange={(e) => setClientSignInData({ ...clientSignInData, email: e.target.value })}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signin-password">Password</Label>
+                  <Label htmlFor="client-password">Password</Label>
                   <Input
-                    id="signin-password"
+                    id="client-password"
                     type="password"
                     placeholder="••••••••"
-                    value={signInData.password}
-                    onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
+                    value={clientSignInData.password}
+                    onChange={(e) => setClientSignInData({ ...clientSignInData, password: e.target.value })}
                     required
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="agent-code">Agent Code</Label>
+                  <Input
+                    id="agent-code"
+                    type="text"
+                    placeholder="AGT001"
+                    value={clientSignInData.agentCode}
+                    onChange={(e) => setClientSignInData({ ...clientSignInData, agentCode: e.target.value })}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Enter the code provided by your insurance agent</p>
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -178,96 +243,36 @@ const Auth = () => {
               </form>
             </TabsContent>
             
-            <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">Full Name *</Label>
-                  <Input
-                    id="signup-name"
-                    type="text"
-                    placeholder="John Doe"
-                    value={signUpData.fullName}
-                    onChange={(e) => setSignUpData({ ...signUpData, fullName: e.target.value })}
-                    required
-                  />
+            <TabsContent value="admin">
+              <form onSubmit={handleAdminSignIn} className="space-y-4">
+                <div className="text-sm text-muted-foreground text-center mb-4">
+                  Admin and Agent login only
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email *</Label>
+                  <Label htmlFor="admin-email">Email</Label>
                   <Input
-                    id="signup-email"
+                    id="admin-email"
                     type="email"
-                    placeholder="you@example.com"
-                    value={signUpData.email}
-                    onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
+                    placeholder="admin@example.com"
+                    value={adminSignInData.email}
+                    onChange={(e) => setAdminSignInData({ ...adminSignInData, email: e.target.value })}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password *</Label>
+                  <Label htmlFor="admin-password">Password</Label>
                   <Input
-                    id="signup-password"
+                    id="admin-password"
                     type="password"
                     placeholder="••••••••"
-                    value={signUpData.password}
-                    onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                    value={adminSignInData.password}
+                    onChange={(e) => setAdminSignInData({ ...adminSignInData, password: e.target.value })}
                     required
                   />
                 </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-age">Age</Label>
-                    <Input
-                      id="signup-age"
-                      type="number"
-                      min="0"
-                      max="150"
-                      placeholder="25"
-                      value={signUpData.age}
-                      onChange={(e) => setSignUpData({ ...signUpData, age: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-dob">Date of Birth</Label>
-                    <Input
-                      id="signup-dob"
-                      type="date"
-                      value={signUpData.dateOfBirth}
-                      onChange={(e) => setSignUpData({ ...signUpData, dateOfBirth: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="signup-gender">Gender</Label>
-                  <select
-                    id="signup-gender"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    value={signUpData.gender}
-                    onChange={(e) => setSignUpData({ ...signUpData, gender: e.target.value })}
-                  >
-                    <option value="">Select gender</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                    <option value="prefer_not_to_say">Prefer not to say</option>
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="signup-avatar">Profile Picture</Label>
-                  <Input
-                    id="signup-avatar"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setSignUpData({ ...signUpData, avatarFile: e.target.files?.[0] || null })}
-                  />
-                  <p className="text-xs text-muted-foreground">Max file size: 5MB</p>
-                </div>
-
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create Account
+                  Sign In
                 </Button>
               </form>
             </TabsContent>
