@@ -206,6 +206,7 @@ export type Database = {
           full_name: string | null
           gender: string | null
           id: string
+          onboarded_by_agent: string | null
           updated_at: string | null
         }
         Insert: {
@@ -217,6 +218,7 @@ export type Database = {
           full_name?: string | null
           gender?: string | null
           id: string
+          onboarded_by_agent?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -228,9 +230,18 @@ export type Database = {
           full_name?: string | null
           gender?: string | null
           id?: string
+          onboarded_by_agent?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_onboarded_by_agent_fkey"
+            columns: ["onboarded_by_agent"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

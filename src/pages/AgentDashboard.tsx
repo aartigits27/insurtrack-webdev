@@ -6,9 +6,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Briefcase, DollarSign, Loader2, Heart, Activity, Car, Home, Shield, ChevronDown, ChevronUp } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Users, Briefcase, DollarSign, Loader2, Heart, Activity, Car, Home, Shield, ChevronDown, ChevronUp, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppSidebar } from '@/components/AppSidebar';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -70,6 +73,18 @@ const AgentDashboard = () => {
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+
+  // Onboard client form
+  const [onboardDialogOpen, setOnboardDialogOpen] = useState(false);
+  const [onboarding, setOnboarding] = useState(false);
+  const [newClientData, setNewClientData] = useState({
+    fullName: '',
+    email: '',
+    password: '',
+    age: '',
+    gender: '',
+    dateOfBirth: '',
+  });
 
   useEffect(() => {
     if (!authLoading && !roleLoading) {
@@ -210,6 +225,55 @@ const AgentDashboard = () => {
     setCommissions(commissionsWithPolicies);
   };
 
+  const handleOnboardClient = async () => {
+    if (!newClientData.fullName || !newClientData.email || !newClientData.password) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+
+    if (newClientData.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    setOnboarding(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('onboard-client', {
+        body: {
+          email: newClientData.email,
+          password: newClientData.password,
+          fullName: newClientData.fullName,
+          age: newClientData.age ? parseInt(newClientData.age) : undefined,
+          gender: newClientData.gender || undefined,
+          dateOfBirth: newClientData.dateOfBirth || undefined,
+        },
+      });
+
+      if (error) {
+        console.error('Error onboarding client:', error);
+        toast.error(error.message || 'Failed to onboard client');
+      } else {
+        toast.success(`Client onboarded successfully! They can login with agent code: ${agentInfo?.agent_code}`);
+        setNewClientData({
+          fullName: '',
+          email: '',
+          password: '',
+          age: '',
+          gender: '',
+          dateOfBirth: '',
+        });
+        setOnboardDialogOpen(false);
+        fetchData();
+      }
+    } catch (err) {
+      console.error('Error onboarding client:', err);
+      toast.error('Failed to onboard client');
+    }
+
+    setOnboarding(false);
+  };
+
   const toggleClientExpand = (clientId: string) => {
     const newExpanded = new Set(expandedClients);
     if (newExpanded.has(clientId)) {
@@ -280,6 +344,90 @@ const AgentDashboard = () => {
                 </p>
               </div>
             </div>
+            <Dialog open={onboardDialogOpen} onOpenChange={setOnboardDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Onboard Client
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Onboard New Client</DialogTitle>
+                  <DialogDescription>
+                    Create a new client account. They will use agent code: <strong>{agentInfo?.agent_code}</strong> to login.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Full Name *</Label>
+                    <Input
+                      placeholder="John Doe"
+                      value={newClientData.fullName}
+                      onChange={(e) => setNewClientData({ ...newClientData, fullName: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Email *</Label>
+                    <Input
+                      type="email"
+                      placeholder="client@example.com"
+                      value={newClientData.email}
+                      onChange={(e) => setNewClientData({ ...newClientData, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Initial Password *</Label>
+                    <Input
+                      type="password"
+                      placeholder="••••••••"
+                      value={newClientData.password}
+                      onChange={(e) => setNewClientData({ ...newClientData, password: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground">Client can change this password later</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Age</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="150"
+                        placeholder="25"
+                        value={newClientData.age}
+                        onChange={(e) => setNewClientData({ ...newClientData, age: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Date of Birth</Label>
+                      <Input
+                        type="date"
+                        value={newClientData.dateOfBirth}
+                        onChange={(e) => setNewClientData({ ...newClientData, dateOfBirth: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Gender</Label>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      value={newClientData.gender}
+                      onChange={(e) => setNewClientData({ ...newClientData, gender: e.target.value })}
+                    >
+                      <option value="">Select gender</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                      <option value="prefer_not_to_say">Prefer not to say</option>
+                    </select>
+                  </div>
+                  <Button onClick={handleOnboardClient} className="w-full" disabled={onboarding}>
+                    {onboarding && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Create Client Account
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </header>
 
@@ -353,7 +501,7 @@ const AgentDashboard = () => {
                     </div>
                   ) : clients.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
-                      No clients assigned to you yet.
+                      No clients assigned to you yet. Use "Onboard Client" to add your first client.
                     </div>
                   ) : (
                     <div className="space-y-4">
