@@ -289,7 +289,13 @@ export type Database = {
     Enums: {
       app_role: "admin" | "agent" | "user"
       insurance_type: "life" | "health" | "vehicle" | "house"
-      policy_status: "active" | "pending" | "expired" | "cancelled"
+      policy_status:
+        | "active"
+        | "pending"
+        | "expired"
+        | "cancelled"
+        | "inactive"
+        | "matured"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -419,7 +425,14 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "agent", "user"],
       insurance_type: ["life", "health", "vehicle", "house"],
-      policy_status: ["active", "pending", "expired", "cancelled"],
+      policy_status: [
+        "active",
+        "pending",
+        "expired",
+        "cancelled",
+        "inactive",
+        "matured",
+      ],
     },
   },
 } as const
