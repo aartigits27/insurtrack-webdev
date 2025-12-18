@@ -25,7 +25,7 @@ interface Policy {
   policy_provider: string;
   policy_number: string;
   insurance_type: 'life' | 'health' | 'vehicle' | 'house';
-  policy_status: 'active' | 'pending' | 'expired' | 'cancelled';
+  policy_status: 'active' | 'pending' | 'expired' | 'cancelled' | 'inactive' | 'matured';
   coverage_amount: number;
   premium_amount: number;
   monthly_emi: number | null;
@@ -388,6 +388,8 @@ const AgentDashboard = () => {
       case 'pending': return 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400';
       case 'expired': return 'bg-gray-500/10 text-gray-700 dark:text-gray-400';
       case 'cancelled': return 'bg-red-500/10 text-red-700 dark:text-red-400';
+      case 'inactive': return 'bg-orange-500/10 text-orange-700 dark:text-orange-400';
+      case 'matured': return 'bg-blue-500/10 text-blue-700 dark:text-blue-400';
       default: return '';
     }
   };
@@ -528,7 +530,7 @@ const AgentDashboard = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Monthly EMI (₹)</Label>
+                        <Label>Monthly Premium Amount (₹)</Label>
                         <Input
                           type="number"
                           placeholder="e.g., 5000"
@@ -537,7 +539,7 @@ const AgentDashboard = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>EMI Due Date (Day 1-31)</Label>
+                        <Label>Premium Due Date (Day 1-31)</Label>
                         <Input
                           type="number"
                           min="1"
@@ -576,10 +578,14 @@ const AgentDashboard = () => {
                           <SelectValue placeholder="Select status" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="active">Active (Premium Paid)</SelectItem>
                           <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="expired">Expired</SelectItem>
+                          <SelectItem value="inactive">Inactive (Premium Unpaid 4+ Months)</SelectItem>
+                          <SelectItem value="expired">Expired (Not Renewed)</SelectItem>
                           <SelectItem value="cancelled">Cancelled</SelectItem>
+                          {policyFormData.insurance_type === 'life' && (
+                            <SelectItem value="matured">Matured (Coverage Payable)</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -1036,13 +1042,13 @@ const AgentDashboard = () => {
                   </div>
                   {selectedPolicy.monthly_emi && (
                     <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Monthly EMI</span>
+                      <span className="text-muted-foreground">Monthly Premium Amount</span>
                       <span className="font-medium">{formatCurrency(Number(selectedPolicy.monthly_emi))}</span>
                     </div>
                   )}
                   {selectedPolicy.emi_date && (
                     <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">EMI Due Date</span>
+                      <span className="text-muted-foreground">Premium Due Date</span>
                       <span className="font-medium">{selectedPolicy.emi_date}th of every month</span>
                     </div>
                   )}
