@@ -300,6 +300,10 @@ const AgentDashboard = () => {
   };
 
   const handleAddPolicy = async () => {
+    if (!agentInfo?.id) {
+      toast.error('Agent profile is still loading. Please try again in a moment.');
+      return;
+    }
     if (!policyClientId) {
       toast.error('Please select a client');
       return;
@@ -315,12 +319,12 @@ const AgentDashboard = () => {
       const { error } = await supabase.from('insurance_policies').insert([
         {
           user_id: policyClientId,
-          agent_id: agentInfo?.id,
+          agent_id: agentInfo.id,
           policy_name: policyFormData.policy_name,
           policy_provider: policyFormData.policy_provider,
           policy_number: policyFormData.policy_number,
           insurance_type: policyFormData.insurance_type as 'life' | 'health' | 'vehicle' | 'house',
-          policy_status: policyFormData.policy_status as 'active' | 'pending' | 'expired' | 'cancelled',
+          policy_status: policyFormData.policy_status as 'active' | 'pending' | 'expired' | 'cancelled' | 'inactive' | 'matured',
           coverage_amount: parseFloat(policyFormData.coverage_amount) || 0,
           premium_amount: parseFloat(policyFormData.premium_amount) || 0,
           monthly_emi: policyFormData.monthly_emi ? parseFloat(policyFormData.monthly_emi) : null,
