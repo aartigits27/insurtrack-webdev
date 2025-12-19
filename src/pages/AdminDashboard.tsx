@@ -12,7 +12,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, Plus, Users, UserPlus, Loader2, Trash2, Link } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Separator } from '@/components/ui/separator';
+import { Shield, Plus, Users, UserPlus, Loader2, Trash2, Link, ChevronDown, ChevronRight, FileText, Calendar, IndianRupee } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppSidebar } from '@/components/AppSidebar';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -30,11 +32,28 @@ interface Agent {
   };
 }
 
+interface Policy {
+  id: string;
+  policy_name: string;
+  policy_provider: string;
+  policy_number: string;
+  insurance_type: 'life' | 'health' | 'vehicle' | 'house';
+  policy_status: 'active' | 'pending' | 'expired' | 'cancelled' | 'inactive' | 'matured';
+  coverage_amount: number;
+  premium_amount: number;
+  monthly_emi: number | null;
+  emi_date: number | null;
+  start_date: string;
+  end_date: string;
+  description: string | null;
+}
+
 interface Client {
   id: string;
   full_name: string;
   email: string;
   created_at: string;
+  policies?: Policy[];
 }
 
 interface AgentClient {
@@ -69,9 +88,14 @@ const AdminDashboard = () => {
   
   // Assign Client Form
   const [selectedAgent, setSelectedAgent] = useState('');
-  const [selectedClient, setSelectedClient] = useState('');
+  const [selectedClientForAssign, setSelectedClientForAssign] = useState('');
   const [assigningClient, setAssigningClient] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+
+  // Client & Policy View
+  const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+  const [selectedPolicy, setSelectedPolicy] = useState<Policy | null>(null);
+  const [policyDialogOpen, setPolicyDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !roleLoading) {
@@ -221,7 +245,7 @@ const AdminDashboard = () => {
   };
 
   const handleAssignClient = async () => {
-    if (!selectedAgent || !selectedClient) {
+    if (!selectedAgent || !selectedClientForAssign) {
       toast.error('Please select both agent and client');
       return;
     }
@@ -232,7 +256,7 @@ const AdminDashboard = () => {
       .from('agent_clients')
       .insert({
         agent_id: selectedAgent,
-        client_id: selectedClient,
+        client_id: selectedClientForAssign,
       });
 
     if (error) {
@@ -245,7 +269,7 @@ const AdminDashboard = () => {
     } else {
       toast.success('Client assigned successfully!');
       setSelectedAgent('');
-      setSelectedClient('');
+      setSelectedClientForAssign('');
       setAssignDialogOpen(false);
       fetchAgentClients();
     }
@@ -279,6 +303,60 @@ const AdminDashboard = () => {
       toast.success(`Agent ${!currentStatus ? 'activated' : 'deactivated'}`);
       fetchAgents();
     }
+  };
+
+  const toggleClientExpansion = async (clientId: string) => {
+    const newExpanded = new Set(expandedClients);
+    if (newExpanded.has(clientId)) {
+      newExpanded.delete(clientId);
+    } else {
+      newExpanded.add(clientId);
+      // Fetch policies for this client if not already loaded
+      const client = clients.find(c => c.id === clientId);
+      if (client && !client.policies) {
+        const { data: policies, error } = await supabase
+          .from('insurance_policies')
+          .select('*')
+          .eq('user_id', clientId)
+          .order('created_at', { ascending: false });
+        
+        if (!error && policies) {
+          setClients(prev => prev.map(c => 
+            c.id === clientId ? { ...c, policies: policies as Policy[] } : c
+          ));
+        }
+      }
+    }
+    setExpandedClients(newExpanded);
+  };
+
+  const handleViewPolicy = (policy: Policy) => {
+    setSelectedPolicy(policy);
+    setPolicyDialogOpen(true);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-green-500/10 text-green-700 dark:text-green-400';
+      case 'pending': return 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400';
+      case 'expired': return 'bg-gray-500/10 text-gray-700 dark:text-gray-400';
+      case 'cancelled': return 'bg-red-500/10 text-red-700 dark:text-red-400';
+      case 'inactive': return 'bg-orange-500/10 text-orange-700 dark:text-orange-400';
+      case 'matured': return 'bg-blue-500/10 text-blue-700 dark:text-blue-400';
+      default: return '';
+    }
+  };
+
+  const getInsuranceTypeIcon = (type: string) => {
+    return <FileText className="w-4 h-4" />;
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(amount);
   };
 
   if (authLoading || roleLoading || !isAdmin) {
@@ -343,6 +421,10 @@ const AdminDashboard = () => {
               <TabsTrigger value="agents" className="flex items-center gap-2">
                 <Users className="w-4 h-4" />
                 Agents
+              </TabsTrigger>
+              <TabsTrigger value="clients" className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Clients & Policies
               </TabsTrigger>
               <TabsTrigger value="assignments" className="flex items-center gap-2">
                 <Link className="w-4 h-4" />
@@ -474,6 +556,88 @@ const AdminDashboard = () => {
               </Card>
             </TabsContent>
 
+            <TabsContent value="clients">
+              <Card>
+                <CardHeader>
+                  <CardTitle>All Clients & Their Policies</CardTitle>
+                  <CardDescription>View client details and their insurance policies</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    </div>
+                  ) : clients.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No clients yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {clients.map((client) => (
+                        <Collapsible
+                          key={client.id}
+                          open={expandedClients.has(client.id)}
+                          onOpenChange={() => toggleClientExpansion(client.id)}
+                        >
+                          <CollapsibleTrigger className="flex items-center justify-between w-full p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-3">
+                              {expandedClients.has(client.id) ? (
+                                <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                              )}
+                              <div className="text-left">
+                                <p className="font-medium">{client.full_name || 'No Name'}</p>
+                                <p className="text-sm text-muted-foreground">{client.email}</p>
+                              </div>
+                            </div>
+                            <Badge variant="outline">
+                              {client.policies?.length || 0} policies
+                            </Badge>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="pt-2 pl-8">
+                            {client.policies && client.policies.length > 0 ? (
+                              <div className="space-y-2">
+                                {client.policies.map((policy) => (
+                                  <div
+                                    key={policy.id}
+                                    className="flex items-center justify-between p-3 bg-background border rounded-lg cursor-pointer hover:border-primary/50 transition-colors"
+                                    onClick={() => handleViewPolicy(policy)}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      {getInsuranceTypeIcon(policy.insurance_type)}
+                                      <div>
+                                        <p className="font-medium text-sm">{policy.policy_name}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {policy.policy_provider} • {policy.policy_number}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Badge className={getStatusColor(policy.policy_status)}>
+                                        {policy.policy_status}
+                                      </Badge>
+                                      <span className="text-sm font-medium">
+                                        {formatCurrency(Number(policy.coverage_amount || 0))}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-muted-foreground py-4 text-center">
+                                No policies found for this client.
+                              </p>
+                            )}
+                          </CollapsibleContent>
+                        </Collapsible>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
             <TabsContent value="assignments">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
@@ -511,7 +675,7 @@ const AdminDashboard = () => {
                         </div>
                         <div className="space-y-2">
                           <Label>Select Client</Label>
-                          <Select value={selectedClient} onValueChange={setSelectedClient}>
+                          <Select value={selectedClientForAssign} onValueChange={setSelectedClientForAssign}>
                             <SelectTrigger>
                               <SelectValue placeholder="Choose a client" />
                             </SelectTrigger>
@@ -582,6 +746,121 @@ const AdminDashboard = () => {
               </Card>
             </TabsContent>
           </Tabs>
+
+          {/* Policy Detail Dialog */}
+          <Dialog open={policyDialogOpen} onOpenChange={setPolicyDialogOpen}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Policy Details
+                </DialogTitle>
+                <DialogDescription>
+                  View complete policy information
+                </DialogDescription>
+              </DialogHeader>
+              {selectedPolicy && (
+                <div className="space-y-6 py-4">
+                  {/* Policy Header */}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold">{selectedPolicy.policy_name}</h3>
+                      <p className="text-muted-foreground">{selectedPolicy.policy_provider}</p>
+                      <p className="text-sm text-muted-foreground">Policy #: {selectedPolicy.policy_number}</p>
+                    </div>
+                    <Badge className={getStatusColor(selectedPolicy.policy_status)}>
+                      {selectedPolicy.policy_status}
+                    </Badge>
+                  </div>
+
+                  <Separator />
+
+                  {/* Policy Type */}
+                  <div className="flex items-center gap-2">
+                    {getInsuranceTypeIcon(selectedPolicy.insurance_type)}
+                    <span className="font-medium capitalize">{selectedPolicy.insurance_type} Insurance</span>
+                  </div>
+
+                  {/* Financial Details */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Coverage Amount</p>
+                      <p className="text-lg font-semibold flex items-center gap-1">
+                        <IndianRupee className="w-4 h-4" />
+                        {formatCurrency(Number(selectedPolicy.coverage_amount || 0))}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Premium Amount</p>
+                      <p className="text-lg font-semibold flex items-center gap-1">
+                        <IndianRupee className="w-4 h-4" />
+                        {formatCurrency(Number(selectedPolicy.premium_amount || 0))}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Monthly Premium & Due Date */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedPolicy.monthly_emi && (
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Monthly Premium Amount</p>
+                        <p className="font-medium">{formatCurrency(Number(selectedPolicy.monthly_emi))}</p>
+                      </div>
+                    )}
+                    {selectedPolicy.emi_date && (
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Premium Due Date</p>
+                        <p className="font-medium">{selectedPolicy.emi_date}th of every month</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <Separator />
+
+                  {/* Dates */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        Start Date
+                      </p>
+                      <p className="font-medium">
+                        {new Date(selectedPolicy.start_date).toLocaleDateString('en-IN', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        End Date
+                      </p>
+                      <p className="font-medium">
+                        {new Date(selectedPolicy.end_date).toLocaleDateString('en-IN', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {selectedPolicy.description && (
+                    <>
+                      <Separator />
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">Description</p>
+                        <p className="text-sm">{selectedPolicy.description}</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </main>
       </div>
     </div>
