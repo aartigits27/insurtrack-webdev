@@ -5,7 +5,11 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Plus, Heart, Activity, Car, Home, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Shield, Plus, Heart, Activity, Car, Home, Loader2, CreditCard, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppSidebar } from '@/components/AppSidebar';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -16,7 +20,7 @@ interface Policy {
   policy_provider: string;
   policy_number: string;
   insurance_type: 'life' | 'health' | 'vehicle' | 'house';
-  policy_status: 'active' | 'pending' | 'expired' | 'cancelled';
+  policy_status: 'active' | 'pending' | 'expired' | 'cancelled' | 'inactive' | 'matured';
   coverage_amount: number;
   premium_amount: number;
   monthly_emi: number | null;
@@ -24,6 +28,13 @@ interface Policy {
   start_date: string;
   end_date: string;
   description: string | null;
+}
+
+interface PremiumPayment {
+  id: string;
+  policy_id: string;
+  payment_month: number;
+  payment_year: number;
 }
 
 const formatCurrency = (amount: number) => {
@@ -46,6 +57,19 @@ const Dashboard = () => {
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<{ full_name: string } | null>(null);
+  const [premiumPayments, setPremiumPayments] = useState<PremiumPayment[]>([]);
+  
+  // Pay Premium Dialog
+  const [payPremiumOpen, setPayPremiumOpen] = useState(false);
+  const [selectedPolicyForPayment, setSelectedPolicyForPayment] = useState<Policy | null>(null);
+  const [paymentMonth, setPaymentMonth] = useState<string>('');
+  const [paymentYear, setPaymentYear] = useState<string>(new Date().getFullYear().toString());
+  const [paymentMethod, setPaymentMethod] = useState<string>('');
+  const [transactionId, setTransactionId] = useState<string>('');
+  const [payingPremium, setPayingPremium] = useState(false);
+
+  const currentMonth = new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -57,6 +81,7 @@ const Dashboard = () => {
     if (user) {
       fetchProfile();
       fetchPolicies();
+      fetchPremiumPayments();
     }
   }, [user]);
 
@@ -95,9 +120,78 @@ const Dashboard = () => {
     setLoading(false);
   };
 
+  const fetchPremiumPayments = async () => {
+    if (!user) return;
+    
+    const { data, error } = await supabase
+      .from('premium_payments')
+      .select('id, policy_id, payment_month, payment_year')
+      .eq('user_id', user.id);
+
+    if (!error && data) {
+      setPremiumPayments(data);
+    }
+  };
+
+  const isPremiumPaidForMonth = (policyId: string, month: number, year: number) => {
+    return premiumPayments.some(
+      p => p.policy_id === policyId && p.payment_month === month && p.payment_year === year
+    );
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
+  };
+
+  const openPayPremiumDialog = (policy: Policy) => {
+    setSelectedPolicyForPayment(policy);
+    setPaymentMonth(currentMonth.toString());
+    setPaymentYear(currentYear.toString());
+    setPaymentMethod('');
+    setTransactionId('');
+    setPayPremiumOpen(true);
+  };
+
+  const handlePayPremium = async () => {
+    if (!selectedPolicyForPayment || !user || !paymentMonth || !paymentYear) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+
+    const month = parseInt(paymentMonth);
+    const year = parseInt(paymentYear);
+
+    // Check if already paid
+    if (isPremiumPaidForMonth(selectedPolicyForPayment.id, month, year)) {
+      toast.error('Premium for this month is already paid');
+      return;
+    }
+
+    setPayingPremium(true);
+
+    const { error } = await supabase
+      .from('premium_payments')
+      .insert({
+        policy_id: selectedPolicyForPayment.id,
+        user_id: user.id,
+        amount: selectedPolicyForPayment.monthly_emi || selectedPolicyForPayment.premium_amount,
+        payment_month: month,
+        payment_year: year,
+        payment_method: paymentMethod || null,
+        transaction_id: transactionId || null,
+      });
+
+    if (error) {
+      console.error('Error paying premium:', error);
+      toast.error('Failed to record payment');
+    } else {
+      toast.success('Premium payment recorded successfully!');
+      setPayPremiumOpen(false);
+      fetchPremiumPayments();
+    }
+
+    setPayingPremium(false);
   };
 
   const getIconForType = (type: string) => {
@@ -125,6 +219,10 @@ const Dashboard = () => {
         return 'bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20';
       case 'cancelled':
         return 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20';
+      case 'inactive':
+        return 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20';
+      case 'matured':
+        return 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20';
       default:
         return '';
     }
@@ -135,6 +233,90 @@ const Dashboard = () => {
     health: policies.filter(p => p.insurance_type === 'health'),
     vehicle: policies.filter(p => p.insurance_type === 'vehicle'),
     house: policies.filter(p => p.insurance_type === 'house'),
+  };
+
+  const months = [
+    { value: '1', label: 'January' },
+    { value: '2', label: 'February' },
+    { value: '3', label: 'March' },
+    { value: '4', label: 'April' },
+    { value: '5', label: 'May' },
+    { value: '6', label: 'June' },
+    { value: '7', label: 'July' },
+    { value: '8', label: 'August' },
+    { value: '9', label: 'September' },
+    { value: '10', label: 'October' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'December' },
+  ];
+
+  const renderPolicyCard = (policy: Policy) => {
+    const isCurrentMonthPaid = isPremiumPaidForMonth(policy.id, currentMonth, currentYear);
+    
+    return (
+      <Card key={policy.id} className="hover:shadow-lg transition-shadow" style={{ boxShadow: 'var(--shadow-soft)' }}>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              {getIconForType(policy.insurance_type)}
+              <div>
+                <CardTitle className="text-base">{policy.policy_name}</CardTitle>
+                <CardDescription>{policy.policy_provider}</CardDescription>
+              </div>
+            </div>
+            <Badge className={getStatusColor(policy.policy_status)}>
+              {policy.policy_status}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Policy #:</span>
+            <span className="font-medium">{policy.policy_number}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Coverage:</span>
+            <span className="font-medium">{formatCurrency(Number(policy.coverage_amount))}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Monthly Premium:</span>
+            <span className="font-medium">{formatCurrency(Number(policy.monthly_emi || 0))}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Valid Until:</span>
+            <span className="font-medium">{new Date(policy.end_date).toLocaleDateString()}</span>
+          </div>
+          
+          {/* Premium Status */}
+          <div className="flex justify-between items-center pt-2 border-t">
+            <span className="text-muted-foreground">This Month:</span>
+            {isCurrentMonthPaid ? (
+              <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 flex items-center gap-1">
+                <CheckCircle className="w-3 h-3" />
+                Paid
+              </Badge>
+            ) : (
+              <Badge className="bg-red-500/10 text-red-700 dark:text-red-400 flex items-center gap-1">
+                <XCircle className="w-3 h-3" />
+                Not Paid
+              </Badge>
+            )}
+          </div>
+          
+          {/* Pay Premium Button */}
+          {policy.policy_status === 'active' && policy.monthly_emi && (
+            <Button 
+              size="sm" 
+              className="w-full mt-2"
+              onClick={() => openPayPremiumDialog(policy)}
+            >
+              <CreditCard className="w-4 h-4 mr-2" />
+              Pay Premium
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    );
   };
 
   if (authLoading || !user) {
@@ -203,7 +385,7 @@ const Dashboard = () => {
           </Card>
           <Card style={{ background: 'var(--gradient-card)', boxShadow: 'var(--shadow-soft)' }}>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Monthly EMI</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Monthly Premium</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">
@@ -233,36 +415,56 @@ const Dashboard = () => {
           </Card>
         ) : (
           <div className="space-y-8">
-            {/* EMI Reminder Card */}
-            {policies.some(p => p.monthly_emi && p.monthly_emi > 0) && (
+            {/* Premium Reminder Card */}
+            {policies.some(p => p.monthly_emi && p.monthly_emi > 0 && p.policy_status === 'active') && (
               <Card className="border-2" style={{ background: 'var(--gradient-vibrant)', boxShadow: 'var(--shadow-large)' }}>
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
                     <Shield className="w-5 h-5" />
-                    EMI Payment Reminder
+                    Premium Payment Reminder
                   </CardTitle>
-                  <CardDescription className="text-white/90">Your upcoming insurance EMI payments</CardDescription>
+                  <CardDescription className="text-white/90">Your upcoming insurance premium payments</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {policies.filter(p => p.monthly_emi && p.monthly_emi > 0 && p.policy_status === 'active').map((policy) => (
-                    <div key={policy.id} className="bg-white/20 backdrop-blur-sm rounded-lg p-4 text-white">
-                        <div className="flex justify-between">
+                  {policies.filter(p => p.monthly_emi && p.monthly_emi > 0 && p.policy_status === 'active').map((policy) => {
+                    const isPaid = isPremiumPaidForMonth(policy.id, currentMonth, currentYear);
+                    return (
+                      <div key={policy.id} className="bg-white/20 backdrop-blur-sm rounded-lg p-4 text-white">
+                        <div className="flex justify-between items-center">
                           <div>
                             <div className="font-semibold">{policy.policy_name}</div>
                             <div className="text-sm text-white/80">{policy.policy_provider}</div>
                           </div>
-                          <div className="text-right">
-                            <div className="font-bold text-lg">{formatCurrency(Number(policy.monthly_emi))}</div>
-                            <div className="text-sm text-white/80">
-                              {policy.emi_date ? `Due on ${policy.emi_date}${getOrdinalSuffix(policy.emi_date)} of every month` : 'Due monthly'}
+                          <div className="text-right flex items-center gap-3">
+                            <div>
+                              <div className="font-bold text-lg">{formatCurrency(Number(policy.monthly_emi))}</div>
+                              <div className="text-sm text-white/80">
+                                {policy.emi_date ? `Due on ${policy.emi_date}${getOrdinalSuffix(policy.emi_date)}` : 'Due monthly'}
+                              </div>
                             </div>
+                            {isPaid ? (
+                              <Badge className="bg-white/30 text-white">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Paid
+                              </Badge>
+                            ) : (
+                              <Button 
+                                size="sm" 
+                                variant="secondary"
+                                onClick={() => openPayPremiumDialog(policy)}
+                              >
+                                Pay Now
+                              </Button>
+                            )}
                           </div>
                         </div>
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </CardContent>
               </Card>
             )}
+            
             {/* Life Insurance */}
             {groupedPolicies.life.length > 0 && (
               <div>
@@ -272,42 +474,7 @@ const Dashboard = () => {
                   <Badge variant="secondary">{groupedPolicies.life.length}</Badge>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {groupedPolicies.life.map((policy) => (
-                    <Card key={policy.id} className="hover:shadow-lg transition-shadow" style={{ boxShadow: 'var(--shadow-soft)' }}>
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
-                            {getIconForType(policy.insurance_type)}
-                            <div>
-                              <CardTitle className="text-base">{policy.policy_name}</CardTitle>
-                              <CardDescription>{policy.policy_provider}</CardDescription>
-                            </div>
-                          </div>
-                          <Badge className={getStatusColor(policy.policy_status)}>
-                            {policy.policy_status}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Policy #:</span>
-                          <span className="font-medium">{policy.policy_number}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Coverage:</span>
-                          <span className="font-medium">{formatCurrency(Number(policy.coverage_amount))}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Monthly EMI:</span>
-                          <span className="font-medium">{formatCurrency(Number(policy.monthly_emi || 0))}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Valid Until:</span>
-                          <span className="font-medium">{new Date(policy.end_date).toLocaleDateString()}</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  {groupedPolicies.life.map(renderPolicyCard)}
                 </div>
               </div>
             )}
@@ -321,42 +488,7 @@ const Dashboard = () => {
                   <Badge variant="secondary">{groupedPolicies.health.length}</Badge>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {groupedPolicies.health.map((policy) => (
-                    <Card key={policy.id} className="hover:shadow-lg transition-shadow" style={{ boxShadow: 'var(--shadow-soft)' }}>
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
-                            {getIconForType(policy.insurance_type)}
-                            <div>
-                              <CardTitle className="text-base">{policy.policy_name}</CardTitle>
-                              <CardDescription>{policy.policy_provider}</CardDescription>
-                            </div>
-                          </div>
-                          <Badge className={getStatusColor(policy.policy_status)}>
-                            {policy.policy_status}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Policy #:</span>
-                          <span className="font-medium">{policy.policy_number}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Coverage:</span>
-                          <span className="font-medium">{formatCurrency(Number(policy.coverage_amount))}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Monthly EMI:</span>
-                          <span className="font-medium">{formatCurrency(Number(policy.monthly_emi || 0))}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Valid Until:</span>
-                          <span className="font-medium">{new Date(policy.end_date).toLocaleDateString()}</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  {groupedPolicies.health.map(renderPolicyCard)}
                 </div>
               </div>
             )}
@@ -370,42 +502,7 @@ const Dashboard = () => {
                   <Badge variant="secondary">{groupedPolicies.vehicle.length}</Badge>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {groupedPolicies.vehicle.map((policy) => (
-                    <Card key={policy.id} className="hover:shadow-lg transition-shadow" style={{ boxShadow: 'var(--shadow-soft)' }}>
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
-                            {getIconForType(policy.insurance_type)}
-                            <div>
-                              <CardTitle className="text-base">{policy.policy_name}</CardTitle>
-                              <CardDescription>{policy.policy_provider}</CardDescription>
-                            </div>
-                          </div>
-                          <Badge className={getStatusColor(policy.policy_status)}>
-                            {policy.policy_status}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Policy #:</span>
-                          <span className="font-medium">{policy.policy_number}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Coverage:</span>
-                          <span className="font-medium">{formatCurrency(Number(policy.coverage_amount))}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Monthly EMI:</span>
-                          <span className="font-medium">{formatCurrency(Number(policy.monthly_emi || 0))}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Valid Until:</span>
-                          <span className="font-medium">{new Date(policy.end_date).toLocaleDateString()}</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  {groupedPolicies.vehicle.map(renderPolicyCard)}
                 </div>
               </div>
             )}
@@ -419,47 +516,119 @@ const Dashboard = () => {
                   <Badge variant="secondary">{groupedPolicies.house.length}</Badge>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {groupedPolicies.house.map((policy) => (
-                    <Card key={policy.id} className="hover:shadow-lg transition-shadow" style={{ boxShadow: 'var(--shadow-soft)' }}>
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
-                            {getIconForType(policy.insurance_type)}
-                            <div>
-                              <CardTitle className="text-base">{policy.policy_name}</CardTitle>
-                              <CardDescription>{policy.policy_provider}</CardDescription>
-                            </div>
-                          </div>
-                          <Badge className={getStatusColor(policy.policy_status)}>
-                            {policy.policy_status}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Policy #:</span>
-                          <span className="font-medium">{policy.policy_number}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Coverage:</span>
-                          <span className="font-medium">{formatCurrency(Number(policy.coverage_amount))}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Monthly EMI:</span>
-                          <span className="font-medium">{formatCurrency(Number(policy.monthly_emi || 0))}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Valid Until:</span>
-                          <span className="font-medium">{new Date(policy.end_date).toLocaleDateString()}</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  {groupedPolicies.house.map(renderPolicyCard)}
                 </div>
               </div>
             )}
           </div>
         )}
+
+        {/* Pay Premium Dialog */}
+        <Dialog open={payPremiumOpen} onOpenChange={setPayPremiumOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5" />
+                Pay Premium
+              </DialogTitle>
+              <DialogDescription>
+                Record premium payment for {selectedPolicyForPayment?.policy_name}
+              </DialogDescription>
+            </DialogHeader>
+            {selectedPolicyForPayment && (
+              <div className="space-y-4 py-4">
+                <div className="p-4 bg-muted rounded-lg">
+                  <div className="flex justify-between mb-2">
+                    <span className="text-muted-foreground">Policy:</span>
+                    <span className="font-medium">{selectedPolicyForPayment.policy_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Amount:</span>
+                    <span className="font-bold text-lg">
+                      {formatCurrency(Number(selectedPolicyForPayment.monthly_emi || selectedPolicyForPayment.premium_amount))}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Payment Month *</Label>
+                    <Select value={paymentMonth} onValueChange={setPaymentMonth}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {months.map((month) => (
+                          <SelectItem key={month.value} value={month.value}>
+                            {month.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Payment Year *</Label>
+                    <Select value={paymentYear} onValueChange={setPaymentYear}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[currentYear - 1, currentYear, currentYear + 1].map((year) => (
+                          <SelectItem key={year} value={year.toString()}>
+                            {year}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Payment Method (Optional)</Label>
+                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select payment method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="upi">UPI</SelectItem>
+                      <SelectItem value="netbanking">Net Banking</SelectItem>
+                      <SelectItem value="card">Credit/Debit Card</SelectItem>
+                      <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="cheque">Cheque</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Transaction ID (Optional)</Label>
+                  <Input
+                    placeholder="Enter transaction reference"
+                    value={transactionId}
+                    onChange={(e) => setTransactionId(e.target.value)}
+                  />
+                </div>
+
+                <Button 
+                  className="w-full" 
+                  onClick={handlePayPremium}
+                  disabled={payingPremium}
+                >
+                  {payingPremium ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Confirm Payment
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
     </div>

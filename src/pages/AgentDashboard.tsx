@@ -13,12 +13,134 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, Briefcase, DollarSign, Loader2, Heart, Activity, Car, Home, Shield, ChevronDown, ChevronUp, UserPlus, Plus, ArrowLeft, FileText } from 'lucide-react';
+import { Users, Briefcase, DollarSign, Loader2, Heart, Activity, Car, Home, Shield, ChevronDown, ChevronUp, UserPlus, Plus, ArrowLeft, FileText, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppSidebar } from '@/components/AppSidebar';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
+// Component to show policy details with premium payment status
+const PolicyDetailWithPremiumStatus = ({ 
+  policy, 
+  getStatusColor, 
+  formatCurrency 
+}: { 
+  policy: any; 
+  getStatusColor: (status: string) => string;
+  formatCurrency: (amount: number) => string;
+}) => {
+  const [payments, setPayments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  const currentMonth = new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
+
+  useEffect(() => {
+    const fetchPayments = async () => {
+      const { data } = await supabase
+        .from('premium_payments')
+        .select('*')
+        .eq('policy_id', policy.id)
+        .order('payment_year', { ascending: false })
+        .order('payment_month', { ascending: false });
+      
+      setPayments(data || []);
+      setLoading(false);
+    };
+    fetchPayments();
+  }, [policy.id]);
+
+  const isCurrentMonthPaid = payments.some(
+    p => p.payment_month === currentMonth && p.payment_year === currentYear
+  );
+
+  const getMonthName = (month: number) => {
+    return new Date(2000, month - 1).toLocaleString('default', { month: 'short' });
+  };
+
+  return (
+    <div className="space-y-4 py-4">
+      <div className="flex items-center justify-between">
+        <span className="text-muted-foreground">Status</span>
+        <Badge className={getStatusColor(policy.policy_status)}>
+          {policy.policy_status}
+        </Badge>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-muted-foreground">Insurance Type</span>
+        <span className="font-medium capitalize">{policy.insurance_type}</span>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-muted-foreground">Coverage Amount</span>
+        <span className="font-medium">{formatCurrency(Number(policy.coverage_amount))}</span>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-muted-foreground">Premium Amount</span>
+        <span className="font-medium">{formatCurrency(Number(policy.premium_amount))}</span>
+      </div>
+      {policy.monthly_emi && (
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">Monthly Premium Amount</span>
+          <span className="font-medium">{formatCurrency(Number(policy.monthly_emi))}</span>
+        </div>
+      )}
+      {policy.emi_date && (
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">Premium Due Date</span>
+          <span className="font-medium">{policy.emi_date}th of every month</span>
+        </div>
+      )}
+      <div className="flex items-center justify-between">
+        <span className="text-muted-foreground">Start Date</span>
+        <span className="font-medium">{new Date(policy.start_date).toLocaleDateString()}</span>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-muted-foreground">End Date</span>
+        <span className="font-medium">{new Date(policy.end_date).toLocaleDateString()}</span>
+      </div>
+      
+      {/* Premium Payment Status */}
+      <div className="pt-4 border-t">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-muted-foreground font-medium">Premium Payment Status</span>
+          {loading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : isCurrentMonthPaid ? (
+            <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 flex items-center gap-1">
+              <CheckCircle className="w-3 h-3" />
+              Current Month Paid
+            </Badge>
+          ) : (
+            <Badge className="bg-red-500/10 text-red-700 dark:text-red-400 flex items-center gap-1">
+              <XCircle className="w-3 h-3" />
+              Current Month Not Paid
+            </Badge>
+          )}
+        </div>
+        
+        {payments.length > 0 && (
+          <div className="mt-3">
+            <p className="text-sm text-muted-foreground mb-2">Recent Payments:</p>
+            <div className="flex flex-wrap gap-1">
+              {payments.slice(0, 6).map((payment) => (
+                <Badge key={payment.id} variant="outline" className="text-xs">
+                  {getMonthName(payment.payment_month)} {payment.payment_year}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {policy.description && (
+        <div className="pt-2 border-t">
+          <span className="text-muted-foreground text-sm">Description</span>
+          <p className="mt-1 text-sm">{policy.description}</p>
+        </div>
+      )}
+    </div>
+  );
+};
 interface Policy {
   id: string;
   policy_name: string;
@@ -1025,52 +1147,11 @@ const AgentDashboard = () => {
                 </DialogDescription>
               </DialogHeader>
               {selectedPolicy && (
-                <div className="space-y-4 py-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Status</span>
-                    <Badge className={getStatusColor(selectedPolicy.policy_status)}>
-                      {selectedPolicy.policy_status}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Insurance Type</span>
-                    <span className="font-medium capitalize">{selectedPolicy.insurance_type}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Coverage Amount</span>
-                    <span className="font-medium">{formatCurrency(Number(selectedPolicy.coverage_amount))}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Premium Amount</span>
-                    <span className="font-medium">{formatCurrency(Number(selectedPolicy.premium_amount))}</span>
-                  </div>
-                  {selectedPolicy.monthly_emi && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Monthly Premium Amount</span>
-                      <span className="font-medium">{formatCurrency(Number(selectedPolicy.monthly_emi))}</span>
-                    </div>
-                  )}
-                  {selectedPolicy.emi_date && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Premium Due Date</span>
-                      <span className="font-medium">{selectedPolicy.emi_date}th of every month</span>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Start Date</span>
-                    <span className="font-medium">{new Date(selectedPolicy.start_date).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">End Date</span>
-                    <span className="font-medium">{new Date(selectedPolicy.end_date).toLocaleDateString()}</span>
-                  </div>
-                  {selectedPolicy.description && (
-                    <div className="pt-2 border-t">
-                      <span className="text-muted-foreground text-sm">Description</span>
-                      <p className="mt-1 text-sm">{selectedPolicy.description}</p>
-                    </div>
-                  )}
-                </div>
+                <PolicyDetailWithPremiumStatus 
+                  policy={selectedPolicy} 
+                  getStatusColor={getStatusColor}
+                  formatCurrency={formatCurrency}
+                />
               )}
             </DialogContent>
           </Dialog>
