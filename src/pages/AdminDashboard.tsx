@@ -14,10 +14,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Separator } from '@/components/ui/separator';
-import { Shield, Plus, Users, UserPlus, Loader2, Trash2, Link, ChevronDown, ChevronRight, FileText, Calendar, IndianRupee } from 'lucide-react';
+import { Shield, Plus, Users, UserPlus, Loader2, Trash2, Link, ChevronDown, ChevronRight, FileText, Calendar, IndianRupee, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppSidebar } from '@/components/AppSidebar';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { PremiumPaymentStatus } from '@/components/PremiumPaymentStatus';
 
 interface Agent {
   id: string;
@@ -846,6 +847,10 @@ const AdminDashboard = () => {
                       </p>
                     </div>
                   </div>
+
+                  {/* Premium Payment Status */}
+                  <Separator />
+                  <PremiumPaymentStatus policyId={selectedPolicy.id} showHistory={true} />
 
                   {/* Description */}
                   {selectedPolicy.description && (
