@@ -593,8 +593,6 @@ const Dashboard = () => {
                       <SelectItem value="upi">UPI</SelectItem>
                       <SelectItem value="netbanking">Net Banking</SelectItem>
                       <SelectItem value="card">Credit/Debit Card</SelectItem>
-                      <SelectItem value="cash">Cash</SelectItem>
-                      <SelectItem value="cheque">Cheque</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
