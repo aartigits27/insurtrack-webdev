@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 cd <PROJECT_NAME>
 npm i
@@ -13,3 +14,6 @@ This project is built with:
 - Tailwind CSS
 
 
+=======
+# insurtrack-webdev
+>>>>>>> repoA/main
